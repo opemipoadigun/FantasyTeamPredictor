@@ -1,42 +1,39 @@
+# 1. Import the libraries you need
+#    - one for making HTTP requests to the API
+#    - one for working with JSON data (hint: it's built into Python)
+import os
+import requests
 import json
 
-with open("fpl_data.json", "r") as f:
-    data = json.load(f)
+# 2. Store the API URL in a variable
+#    https://fantasy.premierleague.com/api/bootstrap-static/
 
-import pandas as pd
+FantasyAPI = "https://fantasy.premierleague.com/api/bootstrap-static/"
 
-players = data['elements'] 
+# 3. Make a GET request to that URL and store the response
 
-df = pd.DataFrame(players)
+response = requests.get(FantasyAPI)
 
-# Pick only columns we care about
-columns_of_interest = ["first_name", "second_name", "team", "minutes", "goals_scored", "assists", "saves", "yellow_cards", "red_cards"]
-print(df[columns_of_interest].head())
+# 4. Parse the response as JSON
+if response.status_code == 200:
+    data = response.json()
 
-goalkeepers = df[df['element_type'] == 1]
-print(goalkeepers[["first_name", "second_name", "saves", "minutes"]].head())
 
-goalkeepers['saves_3plus'] = goalkeepers['saves'] >= 3
-print(goalkeepers[['first_name', 'second_name', 'saves', 'saves_3plus']].head())
 
-X = goalkeepers[['minutes']]
-y = goalkeepers['saves_3plus']
+    # 5. The data has a key called "elements" — that's the list of all players
+    #    Pull that out into its own variable
+    players = data["elements"]
 
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+    # 6. Print how many players there are (sanity check)
+    print(len(players))
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # 7. Save the raw JSON response to a file called data/raw/bootstrap.json
+    #    (create the data/raw/ folder first if it doesn't exist)
+    os.makedirs("data/raw", exist_ok=True)
+    with open('data/raw/bootstrap.json', 'w', encoding ='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
-# Create model
-model = LogisticRegression()
+else:
+    print("Error")
 
-# Train
-model.fit(X_train, y_train)
 
-# Predict
-y_pred = model.predict(X_test)
-
-# Check accuracy
-print("Accuracy:", accuracy_score(y_test, y_pred))
