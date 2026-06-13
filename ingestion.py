@@ -1,6 +1,7 @@
 # 1. Import the libraries you need
 #    - one for making HTTP requests to the API
 #    - one for working with JSON data (hint: it's built into Python)
+import time
 import os
 import requests
 import json
@@ -32,29 +33,30 @@ if response.status_code == 200:
     os.makedirs("data/raw", exist_ok=True)
     with open('data/raw/bootstrap.json', 'w', encoding ='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+    all_history = []
+    all_history_past =[]
+    for player in players:
+        
+        print(f"Fetching player {player['id']}...")
+        FantasyPlayerAPI = "https://fantasy.premierleague.com/api/element-summary/{id}/".format(id=player["id"])
+
+        try:
+            response = requests.get(FantasyPlayerAPI)
+            time.sleep(0.5)
+            if response.status_code == 200:
+                data = response.json()
+
+                all_history.extend(data["history"])
+                all_history_past.extend(data["history_past"])
+        except requests.exceptions.RequestException:
+            continue
+
+
+    with open('data/raw/gw_history.json', 'w', encoding ='utf-8') as f: 
+        json.dump(all_history, f, ensure_ascii=False, indent=4)
+    with open('data/raw/past_history.json', 'w', encoding ='utf-8') as f:
+        json.dump(all_history_past, f, ensure_ascii=False, indent=4)
 
 else:
     print("Error")
 
-all_history = []
-all_history_past =[]
-for player in players:
-
-    FantasyPlayerAPI = "https://fantasy.premierleague.com/api/element-summary/{id}/".format(id=player["id"])
-
-    response = requests.get(FantasyPlayerAPI)
-    try:
-        response = requests.get(FantasyPlayerAPI)
-        if response.status_code == 200:
-            data = response.json()
-
-            all_history.extend(data["history"])
-            all_history_past.extend(data["history_past"])
-    except requests.exceptions.RequestException:
-        continue
-
-
-with open('data/raw/gw_history.json', 'w', encoding ='utf-8') as f: 
-    json.dump(all_history, f, ensure_ascii=False, indent=4)
-with open('data/raw/past_history.json', 'w', encoding ='utf-8') as f:
-    json.dump(all_history_past, f, ensure_ascii=False, indent=4)
