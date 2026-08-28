@@ -1,62 +1,61 @@
-# 1. Import the libraries you need
-#    - one for making HTTP requests to the API
-#    - one for working with JSON data (hint: it's built into Python)
-import time
 import os
 import requests
 import json
-
-# 2. Store the API URL in a variable
-#    https://fantasy.premierleague.com/api/bootstrap-static/
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 FantasyAPI = "https://fantasy.premierleague.com/api/bootstrap-static/"
+headers = {"User-Agent": "Mozilla/5.0"}
 
-# 3. Make a GET request to that URL and store the response
+response = requests.get(FantasyAPI, headers=headers)
 
-response = requests.get(FantasyAPI)
-
-# 4. Parse the response as JSON
 if response.status_code == 200:
     data = response.json()
-
-
-
-    # 5. The data has a key called "elements" — that's the list of all players
-    #    Pull that out into its own variable
     players = data["elements"]
-
-    # 6. Print how many players there are (sanity check)
     print(len(players))
-
-    # 7. Save the raw JSON response to a file called data/raw/bootstrap.json
-    #    (create the data/raw/ folder first if it doesn't exist)
     os.makedirs("data/raw", exist_ok=True)
-    with open('data/raw/bootstrap.json', 'w', encoding ='utf-8') as f:
+    with open('data/raw/bootstrap.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
-    all_history = []
-    all_history_past =[]
-    for player in players:
-        
-        print(f"Fetching player {player['id']}...")
-        FantasyPlayerAPI = "https://fantasy.premierleague.com/api/element-summary/{id}/".format(id=player["id"])
-
-        try:
-            response = requests.get(FantasyPlayerAPI)
-            time.sleep(0.5)
-            if response.status_code == 200:
-                data = response.json()
-
-                all_history.extend(data["history"])
-                all_history_past.extend(data["history_past"])
-        except requests.exceptions.RequestException:
-            continue
-
-
-    with open('data/raw/gw_history.json', 'w', encoding ='utf-8') as f: 
-        json.dump(all_history, f, ensure_ascii=False, indent=4)
-    with open('data/raw/past_history.json', 'w', encoding ='utf-8') as f:
-        json.dump(all_history_past, f, ensure_ascii=False, indent=4)
-
 else:
-    print("Error")
+    print("Error fetching bootstrap")
 
+
+def fetch_player(player):
+    url = "https://fantasy.premierleague.com/api/element-summary/{id}/".format(id=player["id"])
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return data["history"], data["history_past"]
+    except requests.exceptions.RequestException:
+        pass
+    return [], []
+
+all_history = []
+all_history_past = []
+
+with ThreadPoolExecutor(max_workers=10) as executor:
+    futures = {executor.submit(fetch_player, player): player for player in players}
+    for future in as_completed(futures):
+        history, history_past = future.result()
+        all_history.extend(history)
+        all_history_past.extend(history_past)
+
+with open('data/raw/gw_history.json', 'w', encoding='utf-8') as f:
+    json.dump(all_history, f, ensure_ascii=False, indent=4)
+with open('data/raw/past_history.json', 'w', encoding='utf-8') as f:
+    json.dump(all_history_past, f, ensure_ascii=False, indent=4)
+
+Vaastav202526 = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/2025-26/gws/merged_gw.csv"
+response = requests.get(Vaastav202526)
+if response.status_code == 200:
+    with open('data/raw/lastseason.csv', 'w') as f:
+        f.write(response.text)
+else:
+    print("Error fetching vaastav data")
+
+fixtures_response = requests.get("https://fantasy.premierleague.com/api/fixtures/", headers=headers)
+if fixtures_response.status_code == 200:
+    with open('data/raw/fixtures.json', 'w', encoding='utf-8') as f:
+        json.dump(fixtures_response.json(), f, ensure_ascii=False, indent=4)
+else:
+    print("Error fetching fixtures")
