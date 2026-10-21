@@ -15,6 +15,19 @@ with open('data/raw/past_history.json', 'r', encoding='utf-8') as file:
 
 lastseason_df = pd.read_csv('data/raw/lastseason.csv')
 
+with open('data/raw/fixtures.json', 'r', encoding='utf-8') as file:
+    fixtures_data = json.load(file)
+
+# Build (team_id, gw) → FDR lookup for current season fixtures
+fdr_rows = []
+for fixture in fixtures_data:
+    gw = fixture.get('event')
+    if gw is None:
+        continue
+    fdr_rows.append({'team': fixture['team_h'], 'next_round': gw, 'next_fixture_difficulty': fixture['team_h_difficulty']})
+    fdr_rows.append({'team': fixture['team_a'], 'next_round': gw, 'next_fixture_difficulty': fixture['team_a_difficulty']})
+fdr_df = pd.DataFrame(fdr_rows)
+
 # 3. Pull out the "elements" list into a pandas DataFrame
 df=pd.DataFrame(data["elements"])
 gw_df = pd.DataFrame(history)
@@ -48,6 +61,12 @@ merged_df["penalties_missed"] = merged_df.groupby("element")["penalties_missed"]
 
 merged_df = merged_df.dropna(subset=["next_gw_points"])
 merged_df["season"] = "2026-27"
+
+# Add next GW fixture difficulty: for a row at round R, look up FDR at round R+1
+merged_df["next_round"] = merged_df["round"] + 1
+merged_df = merged_df.merge(fdr_df, on=["team", "next_round"], how="left")
+merged_df["next_fixture_difficulty"] = merged_df["next_fixture_difficulty"].fillna(3)
+merged_df = merged_df.drop(columns=["next_round"])
 # 6. Print the first 5 rows as a sanity check
 print(merged_df.head())
 # 7. Save to data/processed/players.csv
@@ -74,8 +93,9 @@ lastseason_df["goals_conceded"] = lastseason_df.groupby("element")["goals_conced
 lastseason_df["penalties_saved"] = lastseason_df.groupby("element")["penalties_saved"].transform(lambda x: x.rolling(3, min_periods=1).mean())
 lastseason_df["penalties_missed"] = lastseason_df.groupby("element")["penalties_missed"].transform(lambda x: x.rolling(3, min_periods=1).mean())
 lastseason_df["season"] = "2025-26"
+lastseason_df["next_fixture_difficulty"] = 3  # neutral — no historical FDR available
 
-feature_cols = ["total_points", "minutes", "goals_scored", "assists", "saves", "bonus", "clean_sheets", "yellow_cards", "red_cards", "goals_conceded", "penalties_saved", "penalties_missed", "element_type", "price"]
+feature_cols = ["total_points", "minutes", "goals_scored", "assists", "saves", "bonus", "clean_sheets", "yellow_cards", "red_cards", "goals_conceded", "penalties_saved", "penalties_missed", "element_type", "price", "next_fixture_difficulty"]
 lastseason_df = lastseason_df.dropna(subset=feature_cols)
 
 lastseason_df = lastseason_df.dropna(subset=["next_gw_points"])

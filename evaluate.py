@@ -7,7 +7,7 @@ model = joblib.load("models/model.joblib")
 #Load data/processed/players.csv
 df = pd.read_csv("data/processed/combined_data.csv")
 
-feature_cols = ["total_points", "minutes", "goals_scored", "assists", "saves", "bonus", "clean_sheets", "yellow_cards", "red_cards", "goals_conceded", "penalties_saved", "penalties_missed", "element_type", "price"]
+feature_cols = ["total_points", "minutes", "goals_scored", "assists", "saves", "bonus", "clean_sheets", "yellow_cards", "red_cards", "goals_conceded", "penalties_saved", "penalties_missed", "element_type", "price", "next_fixture_difficulty"]
 df = df.dropna(subset=feature_cols)
 X = df[feature_cols]
 

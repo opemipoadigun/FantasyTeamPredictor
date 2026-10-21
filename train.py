@@ -13,7 +13,7 @@ df = pd.read_csv("data/processed/combined_data.csv", low_memory=False)
 
 # 3. Define your features (X) — all columns except name, team, and total_points
 #    Define your target (y) — total_points column only
-feature_cols = ["total_points", "minutes", "goals_scored", "assists", "saves", "bonus", "clean_sheets", "yellow_cards", "red_cards", "goals_conceded", "penalties_saved", "penalties_missed", "element_type", "price"]
+feature_cols = ["total_points", "minutes", "goals_scored", "assists", "saves", "bonus", "clean_sheets", "yellow_cards", "red_cards", "goals_conceded", "penalties_saved", "penalties_missed", "element_type", "price", "next_fixture_difficulty"]
 df = df.dropna(subset=feature_cols + ["next_gw_points"])
 X = df[feature_cols]
 y = df['next_gw_points']
